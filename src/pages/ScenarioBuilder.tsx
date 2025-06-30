@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Save, Calculator, AlertCircle } from 'lucide-react';
 import { RetirementScenario } from '../types';
+import { ServicePeriodManager } from '../components/ServicePeriodManager';
+import { ServiceCalculator } from '../lib/serviceCalculations';
 
 type Page = 'dashboard' | 'scenario' | 'results' | 'comparison';
 
@@ -27,11 +29,15 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
     federalService: {
       highThreeSalary: 0,
       creditableService: {
-        totalYears: 0,
-        civilianYears: 0,
-        militaryYears: 0,
-        militaryBuyBack: false,
-        nonDeductionService: [],
+        servicePeriods: [
+          ServiceCalculator.generateSimpleServicePeriod(
+            new Date(new Date().getFullYear() - 5, 0, 1), // 5 years ago
+            new Date(), // today
+            'Federal Agency'
+          )
+        ],
+        totalCreditableYears: 0,
+        totalCreditableMonths: 0,
       },
       survivorBenefit: {
         election: 'NONE',
@@ -84,7 +90,37 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
     { id: 'expenses', name: 'Expenses & Taxes', completed: false },
   ];
 
+  // Automatically calculate creditable service totals
+  const creditableService = useMemo(() => {
+    if (!scenario.federalService?.creditableService.servicePeriods) {
+      return { totalCreditableYears: 0, totalCreditableMonths: 0 };
+    }
+    
+    return ServiceCalculator.calculateCreditableService(
+      scenario.federalService.creditableService.servicePeriods,
+      scenario.federalService.creditableService.militaryService,
+      scenario.federalService.unusedSickLeave || 0
+    );
+  }, [
+    scenario.federalService?.creditableService.servicePeriods,
+    scenario.federalService?.creditableService.militaryService,
+    scenario.federalService?.unusedSickLeave
+  ]);
+
   const handleSave = () => {
+    // Update totals before saving
+    setScenario(prev => ({
+      ...prev,
+      federalService: {
+        ...prev.federalService!,
+        creditableService: {
+          ...prev.federalService!.creditableService,
+          totalCreditableYears: creditableService.totalCreditableYears,
+          totalCreditableMonths: creditableService.totalCreditableMonths,
+        }
+      }
+    }));
+    
     // Save scenario logic here
     onNavigate('results');
   };
@@ -129,6 +165,13 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
             <input
               type="date"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              value={scenario.personalInfo?.birthDate instanceof Date 
+                ? scenario.personalInfo.birthDate.toISOString().split('T')[0]
+                : ''}
+              onChange={(e) => setScenario(prev => ({
+                ...prev,
+                personalInfo: { ...prev.personalInfo!, birthDate: new Date(e.target.value) }
+              }))}
             />
           </div>
           <div>
@@ -138,6 +181,13 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
             <input
               type="date"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              value={scenario.personalInfo?.hireDate instanceof Date 
+                ? scenario.personalInfo.hireDate.toISOString().split('T')[0]
+                : ''}
+              onChange={(e) => setScenario(prev => ({
+                ...prev,
+                personalInfo: { ...prev.personalInfo!, hireDate: new Date(e.target.value) }
+              }))}
             />
           </div>
           <div>
@@ -147,6 +197,13 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
             <input
               type="date"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              value={scenario.personalInfo?.plannedRetirementDate instanceof Date 
+                ? scenario.personalInfo.plannedRetirementDate.toISOString().split('T')[0]
+                : ''}
+              onChange={(e) => setScenario(prev => ({
+                ...prev,
+                personalInfo: { ...prev.personalInfo!, plannedRetirementDate: new Date(e.target.value) }
+              }))}
             />
           </div>
         </div>
@@ -179,106 +236,58 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              High-3 Average Salary
-              <span className="text-gray-500 text-xs ml-1">(Annual)</span>
-            </label>
-            <input
-              type="number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={scenario.federalService?.highThreeSalary || ''}
-              onChange={(e) => setScenario(prev => ({
-                ...prev,
-                federalService: { 
-                  ...prev.federalService!, 
-                  highThreeSalary: parseFloat(e.target.value) || 0 
-                }
-              }))}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Total Creditable Service Years
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={scenario.federalService?.creditableService.totalYears || ''}
-              onChange={(e) => setScenario(prev => ({
-                ...prev,
-                federalService: { 
-                  ...prev.federalService!, 
-                  creditableService: {
-                    ...prev.federalService!.creditableService,
-                    totalYears: parseFloat(e.target.value) || 0
-                  }
-                }
-              }))}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Military Service Years
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={scenario.federalService?.creditableService.militaryYears || ''}
-              onChange={(e) => setScenario(prev => ({
-                ...prev,
-                federalService: { 
-                  ...prev.federalService!, 
-                  creditableService: {
-                    ...prev.federalService!.creditableService,
-                    militaryYears: parseFloat(e.target.value) || 0
-                  }
-                }
-              }))}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Unused Sick Leave (Hours)
-            </label>
-            <input
-              type="number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={scenario.federalService?.unusedSickLeave || ''}
-              onChange={(e) => setScenario(prev => ({
-                ...prev,
-                federalService: { 
-                  ...prev.federalService!, 
-                  unusedSickLeave: parseFloat(e.target.value) || 0 
-                }
-              }))}
-            />
-          </div>
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            High-3 Average Salary
+            <span className="text-gray-500 text-xs ml-1">(Annual - highest 36 consecutive months)</span>
+          </label>
+          <input
+            type="number"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            value={scenario.federalService?.highThreeSalary || ''}
+            onChange={(e) => setScenario(prev => ({
+              ...prev,
+              federalService: { 
+                ...prev.federalService!, 
+                highThreeSalary: parseFloat(e.target.value) || 0 
+              }
+            }))}
+            placeholder="85000"
+          />
         </div>
 
-        <div className="mt-6">
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={scenario.federalService?.creditableService.militaryBuyBack || false}
-              onChange={(e) => setScenario(prev => ({
-                ...prev,
-                federalService: { 
-                  ...prev.federalService!, 
-                  creditableService: {
-                    ...prev.federalService!.creditableService,
-                    militaryBuyBack: e.target.checked
-                  }
-                }
-              }))}
-              className="mr-2"
-            />
-            Military service buy-back completed
-          </label>
-        </div>
+        <ServicePeriodManager
+          servicePeriods={scenario.federalService?.creditableService.servicePeriods || []}
+          militaryService={scenario.federalService?.creditableService.militaryService}
+          unusedSickLeave={scenario.federalService?.unusedSickLeave || 0}
+          onServicePeriodsChange={(periods) => setScenario(prev => ({
+            ...prev,
+            federalService: {
+              ...prev.federalService!,
+              creditableService: {
+                ...prev.federalService!.creditableService,
+                servicePeriods: periods
+              }
+            }
+          }))}
+          onMilitaryServiceChange={(military) => setScenario(prev => ({
+            ...prev,
+            federalService: {
+              ...prev.federalService!,
+              creditableService: {
+                ...prev.federalService!.creditableService,
+                militaryService: military
+              }
+            }
+          }))}
+          onSickLeaveChange={(hours) => setScenario(prev => ({
+            ...prev,
+            federalService: {
+              ...prev.federalService!,
+              unusedSickLeave: hours
+            }
+          }))}
+        />
 
         <div className="mt-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">

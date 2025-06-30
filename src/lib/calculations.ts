@@ -163,9 +163,10 @@ export class RetirementCalculator {
     const retirementYear = scenario.personalInfo.plannedRetirementDate.getFullYear();
     const retirementAge = scenario.personalInfo.currentAge + (retirementYear - currentYear);
     
-    // Calculate annual FERS pension
+    // Calculate annual FERS pension using computed creditable service
+    const creditableYears = scenario.federalService.creditableService.totalCreditableYears;
     const annualPension = await this.calculateFERSPension(
-      scenario.federalService.creditableService.totalYears,
+      creditableYears,
       scenario.federalService.highThreeSalary,
       retirementAge
     );
@@ -173,7 +174,7 @@ export class RetirementCalculator {
     // Calculate SRS (FERS Annuity Supplement)
     const srsAmount = retirementAge < 62
       ? this.calculateFERSAnnuitySupplament(
-          scenario.federalService.creditableService.totalYears,
+          scenario.federalService.creditableService.totalCreditableYears,
           scenario.socialSecurity.estimatedBenefit
         )
       : 0;

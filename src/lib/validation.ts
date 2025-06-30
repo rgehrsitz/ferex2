@@ -82,14 +82,14 @@ export class ScenarioValidator {
       });
     }
 
-    const totalYears = service.creditableService?.totalYears || 0;
+    const totalYears = service.creditableService?.totalCreditableYears || 0;
     if (totalYears <= 0) {
       errors.push({ field: 'totalYears', message: 'Total FERS creditable service must be greater than 0' });
     } else if (totalYears > 45) { // FERS started in 1987, so max ~38 years by 2025
       errors.push({ field: 'totalYears', message: 'FERS service years seem too high (FERS started in 1987)' });
     }
 
-    const militaryYears = service.creditableService?.militaryYears || 0;
+    const militaryYears = service.creditableService?.militaryService?.totalMonths ? (service.creditableService.militaryService.totalMonths / 12) : 0;
     if (militaryYears > totalYears) {
       errors.push({ 
         field: 'militaryYears', 

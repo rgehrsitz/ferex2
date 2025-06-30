@@ -37,18 +37,40 @@ export interface FederalService {
 }
 
 export interface CreditableService {
-  totalYears: number;
-  civilianYears: number;
-  militaryYears: number;
-  militaryBuyBack: boolean;
-  nonDeductionService: NonDeductionService[];
+  servicePeriods: ServicePeriod[];
+  militaryService?: MilitaryService;
+  totalCreditableYears: number; // Calculated field
+  totalCreditableMonths: number; // More precise calculation
 }
 
-export interface NonDeductionService {
+export interface ServicePeriod {
+  id: string;
   startDate: Date;
   endDate: Date;
+  serviceType: 'FERS_FULL_TIME' | 'FERS_PART_TIME' | 'TEMPORARY' | 'SEASONAL' | 'NON_DEDUCTION';
+  agency: string;
+  position: string;
+  partTimePercentage?: number; // For part-time service (e.g., 50, 75, etc.)
+  depositRequired: boolean;
   depositPaid: boolean;
-  serviceType: 'TEMPORARY' | 'SEASONAL' | 'OTHER';
+  notes?: string;
+}
+
+export interface MilitaryService {
+  branches: MilitaryBranch[];
+  totalMonths: number;
+  depositRequired: boolean;
+  depositPaid: boolean;
+  receivesMilitaryRetiredPay: boolean;
+}
+
+export interface MilitaryBranch {
+  id: string;
+  branch: 'ARMY' | 'NAVY' | 'AIR_FORCE' | 'MARINES' | 'COAST_GUARD' | 'SPACE_FORCE';
+  startDate: Date;
+  endDate: Date;
+  serviceType: 'ACTIVE_DUTY' | 'RESERVES' | 'NATIONAL_GUARD';
+  honorableDischarge: boolean;
 }
 
 export interface PartTimeService {
