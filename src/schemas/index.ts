@@ -78,7 +78,7 @@ export const tspWithdrawalStrategySchema = z.object({
   }
   if (data.type === 'MIXED') {
     return (data.mixedLifeExpectancyAmount !== undefined && data.mixedLifeExpectancyAmount > 0) ||
-           (data.mixedFixedAmount !== undefined && data.mixedFixedAmount > 0);
+      (data.mixedFixedAmount !== undefined && data.mixedFixedAmount > 0);
   }
   return true;
 }, {
@@ -151,11 +151,26 @@ export const federalServiceSchema = z.object({
 export const socialSecuritySchema = z.object({
   estimatedBenefit: z.number()
     .min(100, 'Estimated benefit seems too low')
-    .max(5000, 'Estimated benefit seems too high - please verify'),
-  fullRetirementAge: z.number()
-    .min(65, 'Full retirement age must be between 65 and 67')
-    .max(67, 'Full retirement age must be between 65 and 67'),
-  claimingAge: z.number()
+    .max(6000, 'Estimated benefit seems too high - please verify'),
+  // Retirement benefits for each age (matching SS statement format)
+  benefitAt62: z.number().min(0, 'Benefit cannot be negative').optional(),
+  benefitAt63: z.number().min(0, 'Benefit cannot be negative').optional(),
+  benefitAt64: z.number().min(0, 'Benefit cannot be negative').optional(),
+  benefitAt65: z.number().min(0, 'Benefit cannot be negative').optional(),
+  benefitAt66: z.number().min(0, 'Benefit cannot be negative').optional(),
+  benefitAt67: z.number().min(0, 'Benefit cannot be negative').optional(),
+  benefitAt68: z.number().min(0, 'Benefit cannot be negative').optional(),
+  benefitAt69: z.number().min(0, 'Benefit cannot be negative').optional(),
+  benefitAt70: z.number().min(0, 'Benefit cannot be negative').optional(),
+  // Other benefit types from SS statement
+  disabilityBenefit: z.number().min(0, 'Disability benefit cannot be negative').optional(),
+  survivorSpouseBenefit: z.number().min(0, 'Survivor benefit cannot be negative').optional(),
+  survivorChildBenefit: z.number().min(0, 'Survivor benefit cannot be negative').optional(),
+  // User preferences
+  fullRetirementAge: z.coerce.number()
+    .min(66, 'Full retirement age must be between 66 and 67')
+    .max(67, 'Full retirement age must be between 66 and 67'),
+  claimingAge: z.coerce.number()
     .min(62, 'Claiming age must be between 62 and 70')
     .max(70, 'Claiming age must be between 62 and 70'),
   earningsHistory: z.array(z.number()).optional(),

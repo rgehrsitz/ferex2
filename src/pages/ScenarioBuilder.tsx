@@ -3,6 +3,7 @@ import { Save, Calculator, AlertCircle } from 'lucide-react';
 import { RetirementScenario } from '../types';
 import { ServicePeriodManager } from '../components/ServicePeriodManager';
 import { TSPManagerRHF } from '../components/TSPManagerRHF';
+import { SocialSecurityManagerRHF } from '../components/SocialSecurityManagerRHF';
 import { ServiceCalculator } from '../lib/serviceCalculations';
 
 type Page = 'dashboard' | 'scenario' | 'results' | 'comparison';
@@ -46,7 +47,21 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
       unusedSickLeave: 0,
     },
     socialSecurity: {
-      estimatedBenefit: 0,
+      estimatedBenefit: 0, // Keep for backward compatibility
+      // Initialize all benefit amounts as undefined (user will fill from statement)
+      benefitAt62: undefined,
+      benefitAt63: undefined,
+      benefitAt64: undefined,
+      benefitAt65: undefined,
+      benefitAt66: undefined,
+      benefitAt67: undefined,
+      benefitAt68: undefined,
+      benefitAt69: undefined,
+      benefitAt70: undefined,
+      // Other benefits
+      disabilityBenefit: undefined,
+      survivorSpouseBenefit: undefined,
+      survivorChildBenefit: undefined,
       fullRetirementAge: 67,
       claimingAge: 67,
     },
@@ -340,6 +355,25 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
     </div>
   );
 
+  const renderSocialSecurity = () => (
+    <div className="space-y-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="text-lg font-semibold text-blue-900">Social Security Planning</h3>
+        <p className="text-blue-700 text-sm mt-1">
+          Enter your Social Security benefit information to optimize your claiming strategy.
+        </p>
+      </div>
+
+      <SocialSecurityManagerRHF
+        socialSecurity={scenario.socialSecurity!}
+        onSocialSecurityChange={(socialSecurity) => setScenario(prev => ({
+          ...prev,
+          socialSecurity
+        }))}
+      />
+    </div>
+  );
+
   const renderActiveTab = () => {
     switch (activeTab) {
       case 'personal':
@@ -347,7 +381,7 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
       case 'federal':
         return renderFederalService();
       case 'social':
-        return <div>Social Security content coming soon...</div>;
+        return renderSocialSecurity();
       case 'tsp':
         return renderTSP();
       case 'income':

@@ -87,7 +87,22 @@ export interface SurvivorBenefit {
 }
 
 export interface SocialSecurity {
-  estimatedBenefit: number; // Monthly benefit at FRA
+  estimatedBenefit: number; // Monthly benefit at FRA (for backward compatibility)
+  // Retirement benefits for each age (matching SS statement)
+  benefitAt62?: number;
+  benefitAt63?: number;
+  benefitAt64?: number;
+  benefitAt65?: number;
+  benefitAt66?: number;
+  benefitAt67?: number;
+  benefitAt68?: number;
+  benefitAt69?: number;
+  benefitAt70?: number;
+  // Other benefit types from SS statement
+  disabilityBenefit?: number;
+  survivorSpouseBenefit?: number;
+  survivorChildBenefit?: number;
+  // User preferences
   fullRetirementAge: number;
   claimingAge: number;
   earningsHistory?: number[]; // Annual earnings for last 35 years
