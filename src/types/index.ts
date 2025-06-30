@@ -106,8 +106,11 @@ export interface TSP {
 }
 
 export interface TSPWithdrawalStrategy {
-  type: 'LIFE_EXPECTANCY' | 'FIXED_AMOUNT' | 'MIXED';
+  type: 'LIFE_EXPECTANCY' | 'FIXED_AMOUNT' | 'FIXED_PERCENTAGE' | 'MIXED';
   fixedAmount?: number;
+  fixedPercentage?: number;
+  mixedLifeExpectancyAmount?: number;
+  mixedFixedAmount?: number;
   frequency: 'MONTHLY' | 'QUARTERLY' | 'ANNUALLY';
   startAge: number;
 }

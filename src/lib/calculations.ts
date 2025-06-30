@@ -49,24 +49,40 @@ export class RetirementCalculator {
 
   static calculateTSPWithdrawals(
     balance: number,
-    withdrawalType: 'LIFE_EXPECTANCY' | 'FIXED_AMOUNT',
+    withdrawalType: 'LIFE_EXPECTANCY' | 'FIXED_AMOUNT' | 'FIXED_PERCENTAGE' | 'MIXED',
     age: number,
-    fixedAmount?: number
+    fixedAmount?: number,
+    fixedPercentage?: number,
+    mixedLifeExpectancyAmount?: number,
+    mixedFixedAmount?: number
   ): { withdrawal: number; newBalance: number } {
+    let withdrawal = 0;
+    
     if (withdrawalType === 'FIXED_AMOUNT' && fixedAmount) {
-      const withdrawal = Math.min(fixedAmount, balance);
-      return {
-        withdrawal,
-        newBalance: Math.max(0, balance - withdrawal)
-      };
+      withdrawal = Math.min(fixedAmount, balance);
+    } else if (withdrawalType === 'FIXED_PERCENTAGE' && fixedPercentage) {
+      withdrawal = balance * (fixedPercentage / 100);
+    } else if (withdrawalType === 'MIXED') {
+      // Combined withdrawal strategy
+      let lifeExpectancyPortion = 0;
+      if (mixedLifeExpectancyAmount) {
+        lifeExpectancyPortion = Math.min(mixedLifeExpectancyAmount, balance);
+      }
+      
+      let fixedPortion = 0;
+      if (mixedFixedAmount) {
+        fixedPortion = Math.min(mixedFixedAmount, balance - lifeExpectancyPortion);
+      }
+      
+      withdrawal = lifeExpectancyPortion + fixedPortion;
+    } else {
+      // Life expectancy method using IRS Uniform Lifetime Table
+      const lifeExpectancyFactor = this.getLifeExpectancyFactor(age);
+      withdrawal = balance / lifeExpectancyFactor;
     }
     
-    // Life expectancy method using IRS Uniform Lifetime Table
-    const lifeExpectancyFactor = this.getLifeExpectancyFactor(age);
-    const withdrawal = balance / lifeExpectancyFactor;
-    
     return {
-      withdrawal,
+      withdrawal: Math.min(withdrawal, balance),
       newBalance: Math.max(0, balance - withdrawal)
     };
   }
@@ -196,12 +212,14 @@ export class RetirementCalculator {
         : 0;
 
       // TSP Withdrawals
-      const withdrawalType = scenario.tsp.withdrawalStrategy.type === 'MIXED' ? 'LIFE_EXPECTANCY' : scenario.tsp.withdrawalStrategy.type;
       const tspWithdrawal = this.calculateTSPWithdrawals(
         tspBalance,
-        withdrawalType,
+        scenario.tsp.withdrawalStrategy.type,
         currentAge,
-        scenario.tsp.withdrawalStrategy.fixedAmount
+        scenario.tsp.withdrawalStrategy.fixedAmount,
+        scenario.tsp.withdrawalStrategy.fixedPercentage,
+        scenario.tsp.withdrawalStrategy.mixedLifeExpectancyAmount,
+        scenario.tsp.withdrawalStrategy.mixedFixedAmount
       );
 
       // Apply TSP growth

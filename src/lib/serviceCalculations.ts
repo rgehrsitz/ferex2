@@ -1,5 +1,5 @@
 import { ServicePeriod, MilitaryService, CreditableService } from '../types';
-import { differenceInDays, parseISO, isAfter } from 'date-fns';
+import { differenceInDays, differenceInMonths, parseISO, isAfter } from 'date-fns';
 
 export class ServiceCalculator {
   /**
@@ -39,18 +39,23 @@ export class ServiceCalculator {
    * Calculate creditable months for a specific service period
    */
   private static calculatePeriodCreditableMonths(period: ServicePeriod): number {
-    const startDate = typeof period.startDate === 'string' ? parseISO(period.startDate) : period.startDate;
-    const endDate = typeof period.endDate === 'string' ? parseISO(period.endDate) : period.endDate;
+    const startDate = typeof period.startDate === 'string' ? new Date(period.startDate) : period.startDate;
+    const endDate = typeof period.endDate === 'string' ? new Date(period.endDate) : period.endDate;
     
     if (isAfter(startDate, endDate)) {
       throw new Error(`Invalid service period: start date ${startDate} is after end date ${endDate}`);
     }
     
-    // Calculate total months with a simpler, safer approach
-    const totalDays = differenceInDays(endDate, startDate);
-    const totalMonths = totalDays / 30.44; // Average days per month (365.25/12)
+    // Calculate total months more accurately
+    const totalMonths = differenceInMonths(endDate, startDate);
     
-    let creditableMonths = totalMonths;
+    // Add fractional months for remaining days
+    const lastMonthStart = new Date(startDate);
+    lastMonthStart.setMonth(lastMonthStart.getMonth() + totalMonths);
+    const remainingDays = differenceInDays(endDate, lastMonthStart);
+    const fractionalMonths = remainingDays / 30.44; // Average days per month
+    
+    let creditableMonths = totalMonths + fractionalMonths;
     
     // Apply service type rules
     switch (period.serviceType) {

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Save, Calculator, AlertCircle } from 'lucide-react';
 import { RetirementScenario } from '../types';
 import { ServicePeriodManager } from '../components/ServicePeriodManager';
+import { TSPManagerRHF } from '../components/TSPManagerRHF';
 import { ServiceCalculator } from '../lib/serviceCalculations';
 
 type Page = 'dashboard' | 'scenario' | 'results' | 'comparison';
@@ -58,6 +59,10 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
       growthRate: 0.07,
       withdrawalStrategy: {
         type: 'LIFE_EXPECTANCY',
+        fixedAmount: undefined,
+        fixedPercentage: undefined,
+        mixedLifeExpectancyAmount: undefined,
+        mixedFixedAmount: undefined,
         frequency: 'MONTHLY',
         startAge: 62,
       },
@@ -211,6 +216,25 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
     </div>
   );
 
+  const renderTSP = () => (
+    <div>
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">TSP Details</h2>
+        <p className="text-gray-600 mt-2">
+          Enter your Thrift Savings Plan information for retirement projections.
+        </p>
+      </div>
+
+      <TSPManagerRHF
+        tsp={scenario.tsp!}
+        onTSPChange={(tsp: any) => setScenario(prev => ({
+          ...prev,
+          tsp
+        }))}
+      />
+    </div>
+  );
+
   const renderFederalService = () => (
     <div className="space-y-6">
       <div>
@@ -325,7 +349,7 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
       case 'social':
         return <div>Social Security content coming soon...</div>;
       case 'tsp':
-        return <div>TSP content coming soon...</div>;
+        return renderTSP();
       case 'income':
         return <div>Other Income content coming soon...</div>;
       case 'expenses':

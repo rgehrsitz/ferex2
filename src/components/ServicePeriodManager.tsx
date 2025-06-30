@@ -23,6 +23,7 @@ export function ServicePeriodManager({
 }: ServicePeriodManagerProps) {
   const [showAdvanced, setShowAdvanced] = useState(servicePeriods.length > 1);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Calculate current totals with error handling and more stable dependencies
   const creditableService = useMemo(() => {
@@ -112,6 +113,18 @@ export function ServicePeriodManager({
     );
     validateAndUpdate(updated);
   }, [servicePeriods]);
+
+  const setFieldError = (fieldId: string, error: string) => {
+    setFieldErrors(prev => ({ ...prev, [fieldId]: error }));
+  };
+
+  const clearFieldError = (fieldId: string) => {
+    setFieldErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[fieldId];
+      return newErrors;
+    });
+  };
 
   const removeServicePeriod = (id: string) => {
     const filtered = servicePeriods.filter(period => period.id !== id);
@@ -246,60 +259,88 @@ export function ServicePeriodManager({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <FormField label="Start Date" required>
+              <FormField label="Start Date" required error={fieldErrors[`${period.id}-startDate`]}>
                 <Input
-                  type="date"
-                  min="1970-01-01"
-                  max="2030-12-31"
+                  type="text"
+                  placeholder="MM/DD/YYYY"
+                  error={!!fieldErrors[`${period.id}-startDate`]}
                   defaultValue={period.startDate instanceof Date 
-                    ? period.startDate.toISOString().split('T')[0]
+                    ? period.startDate.toLocaleDateString('en-US')
                     : ''}
                   onBlur={(e) => {
+                    const fieldId = `${period.id}-startDate`;
                     console.log('Start date blur validation:', e.target.value);
+                    
+                    if (!e.target.value.trim()) {
+                      setFieldError(fieldId, 'Start date is required');
+                      return;
+                    }
+                    
                     try {
-                      if (e.target.value && e.target.value.length === 10) {
-                        const newDate = new Date(e.target.value);
-                        const year = newDate.getFullYear();
-                        
-                        // Only process dates with reasonable years (1970-2030)
-                        if (!isNaN(newDate.getTime()) && year >= 1970 && year <= 2030) {
-                          updateServicePeriod(period.id, { startDate: newDate });
-                          validateServicePeriod(period.id, { startDate: newDate });
-                        } else {
-                          console.log('Skipping start date - invalid year:', year);
-                        }
+                      const newDate = new Date(e.target.value);
+                      const year = newDate.getFullYear();
+                      
+                      if (isNaN(newDate.getTime())) {
+                        setFieldError(fieldId, 'Please enter a valid date (MM/DD/YYYY)');
+                        return;
                       }
+                      
+                      if (year < 1970 || year > 2030) {
+                        setFieldError(fieldId, 'Year must be between 1970 and 2030');
+                        return;
+                      }
+                      
+                      // Valid date - clear any errors and update
+                      clearFieldError(fieldId);
+                      updateServicePeriod(period.id, { startDate: newDate });
+                      validateServicePeriod(period.id, { startDate: newDate });
+                      
                     } catch (error) {
+                      setFieldError(fieldId, 'Please enter a valid date (MM/DD/YYYY)');
                       console.error('Error processing start date:', error);
                     }
                   }}
                 />
               </FormField>
 
-              <FormField label="End Date" required>
+              <FormField label="End Date" required error={fieldErrors[`${period.id}-endDate`]}>
                 <Input
-                  type="date"
-                  min="1970-01-01"
-                  max="2030-12-31"
+                  type="text"
+                  placeholder="MM/DD/YYYY"
+                  error={!!fieldErrors[`${period.id}-endDate`]}
                   defaultValue={period.endDate instanceof Date 
-                    ? period.endDate.toISOString().split('T')[0]
+                    ? period.endDate.toLocaleDateString('en-US')
                     : ''}
                   onBlur={(e) => {
+                    const fieldId = `${period.id}-endDate`;
                     console.log('End date blur validation:', e.target.value);
+                    
+                    if (!e.target.value.trim()) {
+                      setFieldError(fieldId, 'End date is required');
+                      return;
+                    }
+                    
                     try {
-                      if (e.target.value && e.target.value.length === 10) {
-                        const newDate = new Date(e.target.value);
-                        const year = newDate.getFullYear();
-                        
-                        // Only process dates with reasonable years (1970-2030)
-                        if (!isNaN(newDate.getTime()) && year >= 1970 && year <= 2030) {
-                          updateServicePeriod(period.id, { endDate: newDate });
-                          validateServicePeriod(period.id, { endDate: newDate });
-                        } else {
-                          console.log('Skipping end date - invalid year:', year);
-                        }
+                      const newDate = new Date(e.target.value);
+                      const year = newDate.getFullYear();
+                      
+                      if (isNaN(newDate.getTime())) {
+                        setFieldError(fieldId, 'Please enter a valid date (MM/DD/YYYY)');
+                        return;
                       }
+                      
+                      if (year < 1970 || year > 2030) {
+                        setFieldError(fieldId, 'Year must be between 1970 and 2030');
+                        return;
+                      }
+                      
+                      // Valid date - clear any errors and update
+                      clearFieldError(fieldId);
+                      updateServicePeriod(period.id, { endDate: newDate });
+                      validateServicePeriod(period.id, { endDate: newDate });
+                      
                     } catch (error) {
+                      setFieldError(fieldId, 'Please enter a valid date (MM/DD/YYYY)');
                       console.error('Error processing end date:', error);
                     }
                   }}
@@ -396,8 +437,8 @@ export function ServicePeriodManager({
             type="number"
             min="0"
             max="8760"
-            value={unusedSickLeave}
-            onChange={(e) => onSickLeaveChange(parseInt(e.target.value) || 0)}
+            value={unusedSickLeave || ''}
+            onChange={(e) => onSickLeaveChange(e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
             placeholder="0"
           />
           <span className="text-sm text-gray-500">hours</span>
