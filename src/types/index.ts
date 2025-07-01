@@ -228,3 +228,27 @@ export interface ShortfallAnalysis {
   averageShortfallMagnitude: number;
   averageShortfallDuration: number;
 }
+
+// Scenario Storage Types
+export interface ScenariosFile {
+  version: string;
+  createdAt: string;
+  lastModified: string;
+  metadata: {
+    appVersion: string;
+    totalScenarios: number;
+    defaultScenarioId?: string;
+  };
+  scenarios: StoredScenario[];
+}
+
+export interface StoredScenario extends Omit<RetirementScenario, 'createdAt' | 'updatedAt'> {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: string; // ISO string format for JSON storage
+  lastModified: string;
+  tags?: string[];
+  isComplete: boolean; // Whether all required fields are filled
+  lastCalculatedAt?: string;
+}

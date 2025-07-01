@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react';
-import { Save, Calculator, AlertCircle } from 'lucide-react';
-import { RetirementScenario } from '../types';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { Save, Calculator, AlertCircle, FileText } from 'lucide-react';
+import { StoredScenario } from '../types';
 import { ServicePeriodManager } from '../components/ServicePeriodManager';
 import { TSPManagerRHF } from '../components/TSPManagerRHF';
 import { SocialSecurityManagerRHF } from '../components/SocialSecurityManagerRHF';
+import { ScenarioFileManager } from '../components/ScenarioFileManager';
+import { useScenarioManager } from '../lib/useScenarioManager';
 import { ServiceCalculator } from '../lib/serviceCalculations';
 
 type Page = 'dashboard' | 'scenario' | 'results' | 'comparison';
@@ -14,92 +16,78 @@ interface ScenarioBuilderProps {
 
 export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
   const [activeTab, setActiveTab] = useState('personal');
-  const [scenario, setScenario] = useState<Partial<RetirementScenario>>({
-    name: 'New Retirement Scenario',
-    personalInfo: {
-      firstName: '',
-      lastName: '',
-      birthDate: new Date(),
-      hireDate: new Date(),
-      plannedRetirementDate: new Date(),
-      currentAge: 0,
-      yearsOfService: 0,
-    },
-    retirementSystem: {
-      type: 'FERS',
-    },
-    federalService: {
-      highThreeSalary: 0,
-      creditableService: {
-        servicePeriods: [
-          ServiceCalculator.generateSimpleServicePeriod(
-            new Date(new Date().getFullYear() - 5, 0, 1), // 5 years ago
-            new Date(), // today
-            'Federal Agency'
-          )
-        ],
-        totalCreditableYears: 0,
-        totalCreditableMonths: 0,
-      },
-      survivorBenefit: {
-        election: 'NONE',
-      },
-      unusedSickLeave: 0,
-    },
-    socialSecurity: {
-      estimatedBenefit: 0, // Keep for backward compatibility
-      // Initialize all benefit amounts as undefined (user will fill from statement)
-      benefitAt62: undefined,
-      benefitAt63: undefined,
-      benefitAt64: undefined,
-      benefitAt65: undefined,
-      benefitAt66: undefined,
-      benefitAt67: undefined,
-      benefitAt68: undefined,
-      benefitAt69: undefined,
-      benefitAt70: undefined,
-      // Other benefits
-      disabilityBenefit: undefined,
-      survivorSpouseBenefit: undefined,
-      survivorChildBenefit: undefined,
-      fullRetirementAge: 67,
-      claimingAge: 67,
-    },
-    tsp: {
-      currentBalance: 0,
-      traditionalBalance: 0,
-      rothBalance: 0,
-      monthlyContribution: 0,
-      agencyMatch: 0,
-      growthRate: 0.07,
-      withdrawalStrategy: {
-        type: 'LIFE_EXPECTANCY',
-        fixedAmount: undefined,
-        fixedPercentage: undefined,
-        mixedLifeExpectancyAmount: undefined,
-        mixedFixedAmount: undefined,
-        frequency: 'MONTHLY',
-        startAge: 62,
-      },
-      fundsAllocation: {
-        gFund: 10,
-        fFund: 10,
-        cFund: 40,
-        sFund: 20,
-        iFund: 20,
-      },
-    },
-    otherIncome: [],
-    expenses: {
-      monthlyAmount: 0,
-      inflationRate: 0.03,
-    },
-    taxes: {
-      filingStatus: 'MARRIED_FILING_JOINTLY',
-      stateOfResidence: '',
-      pensionTaxBasis: 0,
-    },
-  });
+  const {
+    currentScenario: hookCurrentScenario,
+    saveScenario,
+    createScenario,
+    loadScenario
+  } = useScenarioManager();
+
+  // Local working copy of the scenario
+  const [workingScenario, setWorkingScenario] = useState<StoredScenario | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Sync working scenario with hook's current scenario
+  useEffect(() => {
+    if (hookCurrentScenario && (!workingScenario || workingScenario.id !== hookCurrentScenario.id)) {
+      setWorkingScenario(hookCurrentScenario);
+      setHasUnsavedChanges(false);
+    }
+  }, [hookCurrentScenario, workingScenario]);
+
+  // Initialize with a default scenario if none exists
+  useEffect(() => {
+    const initializeScenario = async () => {
+      if (!hookCurrentScenario) {
+        try {
+          await createScenario('Untitled Scenario');
+        } catch (error) {
+          console.error('Failed to create initial scenario:', error);
+        }
+      }
+    };
+
+    initializeScenario();
+  }, [hookCurrentScenario, createScenario]);
+
+  // Handle scenario changes and mark as unsaved
+  const handleScenarioChange = useCallback((updates: Partial<StoredScenario>) => {
+    if (!workingScenario) return;
+
+    const updatedScenario = { ...workingScenario, ...updates };
+    setWorkingScenario(updatedScenario);
+    setHasUnsavedChanges(true);
+  }, [workingScenario]);
+
+  // Auto-save every 30 seconds if there are unsaved changes
+  useEffect(() => {
+    if (!hasUnsavedChanges || !workingScenario) return;
+
+    const autoSaveInterval = setInterval(async () => {
+      try {
+        await saveScenario(workingScenario);
+        setHasUnsavedChanges(false);
+        console.log('Auto-saved scenario:', workingScenario.name);
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [hasUnsavedChanges, workingScenario, saveScenario]);
+
+  // Handle file operations
+  const handleScenarioLoaded = async (scenario: StoredScenario) => {
+    if (scenario.id) {
+      await loadScenario(scenario.id);
+    }
+    setHasUnsavedChanges(false);
+  };
+
+  const handleNewScenario = () => {
+    setActiveTab('personal'); // Reset to first tab for new scenarios
+    setHasUnsavedChanges(false);
+  };
 
   const tabs = [
     { id: 'personal', name: 'Personal Info', completed: false },
@@ -112,38 +100,58 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
 
   // Automatically calculate creditable service totals
   const creditableService = useMemo(() => {
-    if (!scenario.federalService?.creditableService.servicePeriods) {
+    if (!workingScenario?.federalService?.creditableService.servicePeriods) {
       return { totalCreditableYears: 0, totalCreditableMonths: 0 };
     }
-    
+
     return ServiceCalculator.calculateCreditableService(
-      scenario.federalService.creditableService.servicePeriods,
-      scenario.federalService.creditableService.militaryService,
-      scenario.federalService.unusedSickLeave || 0
+      workingScenario.federalService.creditableService.servicePeriods,
+      workingScenario.federalService.creditableService.militaryService,
+      workingScenario.federalService.unusedSickLeave || 0
     );
   }, [
-    scenario.federalService?.creditableService.servicePeriods,
-    scenario.federalService?.creditableService.militaryService,
-    scenario.federalService?.unusedSickLeave
+    workingScenario?.federalService?.creditableService.servicePeriods,
+    workingScenario?.federalService?.creditableService.militaryService,
+    workingScenario?.federalService?.unusedSickLeave
   ]);
 
-  const handleSave = () => {
+  // Handle save and calculate totals
+  const handleSave = async () => {
+    if (!workingScenario) return;
+
     // Update totals before saving
-    setScenario(prev => ({
-      ...prev,
+    const updatedScenario = {
+      ...workingScenario,
       federalService: {
-        ...prev.federalService!,
+        ...workingScenario.federalService,
         creditableService: {
-          ...prev.federalService!.creditableService,
+          ...workingScenario.federalService.creditableService,
           totalCreditableYears: creditableService.totalCreditableYears,
           totalCreditableMonths: creditableService.totalCreditableMonths,
         }
       }
-    }));
-    
-    // Save scenario logic here
-    onNavigate('results');
+    };
+
+    try {
+      await saveScenario(updatedScenario);
+      setHasUnsavedChanges(false);
+      onNavigate('results');
+    } catch (error) {
+      console.error('Save failed:', error);
+    }
   };
+
+  // Early return if no scenario is loaded yet
+  if (!workingScenario) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-600 mt-2">Loading scenario...</p>
+        </div>
+      </div>
+    );
+  }
 
   const renderPersonalInfo = () => (
     <div className="space-y-6">
@@ -157,11 +165,13 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
             <input
               type="text"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={scenario.personalInfo?.firstName || ''}
-              onChange={(e) => setScenario(prev => ({
-                ...prev,
-                personalInfo: { ...prev.personalInfo!, firstName: e.target.value }
-              }))}
+              value={workingScenario.personalInfo?.firstName || ''}
+              onChange={(e) => handleScenarioChange({
+                personalInfo: {
+                  ...workingScenario.personalInfo,
+                  firstName: e.target.value
+                }
+              })}
             />
           </div>
           <div>
@@ -171,11 +181,13 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
             <input
               type="text"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={scenario.personalInfo?.lastName || ''}
-              onChange={(e) => setScenario(prev => ({
-                ...prev,
-                personalInfo: { ...prev.personalInfo!, lastName: e.target.value }
-              }))}
+              value={workingScenario.personalInfo?.lastName || ''}
+              onChange={(e) => handleScenarioChange({
+                personalInfo: {
+                  ...workingScenario.personalInfo,
+                  lastName: e.target.value
+                }
+              })}
             />
           </div>
           <div>
@@ -185,13 +197,15 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
             <input
               type="date"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={scenario.personalInfo?.birthDate instanceof Date 
-                ? scenario.personalInfo.birthDate.toISOString().split('T')[0]
+              value={workingScenario.personalInfo?.birthDate instanceof Date
+                ? workingScenario.personalInfo.birthDate.toISOString().split('T')[0]
                 : ''}
-              onChange={(e) => setScenario(prev => ({
-                ...prev,
-                personalInfo: { ...prev.personalInfo!, birthDate: new Date(e.target.value) }
-              }))}
+              onChange={(e) => handleScenarioChange({
+                personalInfo: {
+                  ...workingScenario.personalInfo,
+                  birthDate: new Date(e.target.value)
+                }
+              })}
             />
           </div>
           <div>
@@ -201,13 +215,15 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
             <input
               type="date"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={scenario.personalInfo?.hireDate instanceof Date 
-                ? scenario.personalInfo.hireDate.toISOString().split('T')[0]
+              value={workingScenario.personalInfo?.hireDate instanceof Date
+                ? workingScenario.personalInfo.hireDate.toISOString().split('T')[0]
                 : ''}
-              onChange={(e) => setScenario(prev => ({
-                ...prev,
-                personalInfo: { ...prev.personalInfo!, hireDate: new Date(e.target.value) }
-              }))}
+              onChange={(e) => handleScenarioChange({
+                personalInfo: {
+                  ...workingScenario.personalInfo,
+                  hireDate: new Date(e.target.value)
+                }
+              })}
             />
           </div>
           <div>
@@ -217,13 +233,15 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
             <input
               type="date"
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={scenario.personalInfo?.plannedRetirementDate instanceof Date 
-                ? scenario.personalInfo.plannedRetirementDate.toISOString().split('T')[0]
+              value={workingScenario.personalInfo?.plannedRetirementDate instanceof Date
+                ? workingScenario.personalInfo.plannedRetirementDate.toISOString().split('T')[0]
                 : ''}
-              onChange={(e) => setScenario(prev => ({
-                ...prev,
-                personalInfo: { ...prev.personalInfo!, plannedRetirementDate: new Date(e.target.value) }
-              }))}
+              onChange={(e) => handleScenarioChange({
+                personalInfo: {
+                  ...workingScenario.personalInfo,
+                  plannedRetirementDate: new Date(e.target.value)
+                }
+              })}
             />
           </div>
         </div>
@@ -241,11 +259,8 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
       </div>
 
       <TSPManagerRHF
-        tsp={scenario.tsp!}
-        onTSPChange={(tsp: any) => setScenario(prev => ({
-          ...prev,
-          tsp
-        }))}
+        tsp={workingScenario.tsp!}
+        onTSPChange={(tsp: any) => handleScenarioChange({ tsp })}
       />
     </div>
   );
@@ -254,7 +269,7 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Federal Service Details</h3>
-        
+
         <div className="mb-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-center">
@@ -283,49 +298,45 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
           <input
             type="number"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            value={scenario.federalService?.highThreeSalary || ''}
-            onChange={(e) => setScenario(prev => ({
-              ...prev,
-              federalService: { 
-                ...prev.federalService!, 
-                highThreeSalary: parseFloat(e.target.value) || 0 
+            value={workingScenario.federalService?.highThreeSalary || ''}
+            onChange={(e) => handleScenarioChange({
+              federalService: {
+                ...workingScenario.federalService!,
+                highThreeSalary: parseFloat(e.target.value) || 0
               }
-            }))}
+            })}
             placeholder="85000"
           />
         </div>
 
         <ServicePeriodManager
-          servicePeriods={scenario.federalService?.creditableService.servicePeriods || []}
-          militaryService={scenario.federalService?.creditableService.militaryService}
-          unusedSickLeave={scenario.federalService?.unusedSickLeave || 0}
-          onServicePeriodsChange={(periods) => setScenario(prev => ({
-            ...prev,
+          servicePeriods={workingScenario.federalService?.creditableService.servicePeriods || []}
+          militaryService={workingScenario.federalService?.creditableService.militaryService}
+          unusedSickLeave={workingScenario.federalService?.unusedSickLeave || 0}
+          onServicePeriodsChange={(periods) => handleScenarioChange({
             federalService: {
-              ...prev.federalService!,
+              ...workingScenario.federalService!,
               creditableService: {
-                ...prev.federalService!.creditableService,
+                ...workingScenario.federalService!.creditableService,
                 servicePeriods: periods
               }
             }
-          }))}
-          onMilitaryServiceChange={(military) => setScenario(prev => ({
-            ...prev,
+          })}
+          onMilitaryServiceChange={(military) => handleScenarioChange({
             federalService: {
-              ...prev.federalService!,
+              ...workingScenario.federalService!,
               creditableService: {
-                ...prev.federalService!.creditableService,
+                ...workingScenario.federalService!.creditableService,
                 militaryService: military
               }
             }
-          }))}
-          onSickLeaveChange={(hours) => setScenario(prev => ({
-            ...prev,
+          })}
+          onSickLeaveChange={(hours) => handleScenarioChange({
             federalService: {
-              ...prev.federalService!,
+              ...workingScenario.federalService!,
               unusedSickLeave: hours
             }
-          }))}
+          })}
         />
 
         <div className="mt-6">
@@ -334,17 +345,16 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
           </label>
           <select
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            value={scenario.federalService?.survivorBenefit.election || 'NONE'}
-            onChange={(e) => setScenario(prev => ({
-              ...prev,
-              federalService: { 
-                ...prev.federalService!, 
+            value={workingScenario.federalService?.survivorBenefit.election || 'NONE'}
+            onChange={(e) => handleScenarioChange({
+              federalService: {
+                ...workingScenario.federalService!,
                 survivorBenefit: {
-                  ...prev.federalService!.survivorBenefit,
+                  ...workingScenario.federalService!.survivorBenefit,
                   election: e.target.value as any
                 }
               }
-            }))}
+            })}
           >
             <option value="NONE">No Survivor Benefit</option>
             <option value="PARTIAL">Partial (25% - 5% reduction)</option>
@@ -365,11 +375,8 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
       </div>
 
       <SocialSecurityManagerRHF
-        socialSecurity={scenario.socialSecurity!}
-        onSocialSecurityChange={(socialSecurity) => setScenario(prev => ({
-          ...prev,
-          socialSecurity
-        }))}
+        socialSecurity={workingScenario.socialSecurity!}
+        onSocialSecurityChange={(socialSecurity) => handleScenarioChange({ socialSecurity })}
       />
     </div>
   );
@@ -395,12 +402,61 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
 
   return (
     <div className="p-8">
+      {/* Scenario File Manager */}
+      <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+        <ScenarioFileManager
+          currentScenario={workingScenario}
+          onScenarioChange={handleScenarioLoaded}
+          onNewScenario={handleNewScenario}
+          showUnsavedChanges={hasUnsavedChanges}
+          className="flex flex-wrap gap-2"
+        />
+      </div>
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Build Retirement Scenario</h1>
         <p className="text-gray-600 mt-2">
           Create a detailed FERS retirement projection by entering your federal service and financial information.
         </p>
+        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-start">
+            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-2" />
+            <div>
+              <p className="text-sm font-medium text-yellow-900">How to use the file operations:</p>
+              <ul className="text-xs text-yellow-800 mt-1 list-disc list-inside space-y-1">
+                <li><strong>New:</strong> Start a fresh scenario (your current work will be saved first)</li>
+                <li><strong>Open:</strong> Load a previously saved scenario</li>
+                <li><strong>Save:</strong> Save changes to the current scenario</li>
+                <li><strong>Save As:</strong> Save a copy with a new name</li>
+                <li><strong>Export/Import:</strong> Backup or share all your scenarios as a file</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Current Scenario Status */}
+      {workingScenario && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <FileText className="h-5 w-5 text-blue-600 mr-2" />
+              <div>
+                <h3 className="text-sm font-medium text-blue-900">
+                  Working on: {workingScenario.name}
+                </h3>
+                <p className="text-xs text-blue-700">
+                  {hasUnsavedChanges ? 'You have unsaved changes' : 'All changes saved'}
+                  {workingScenario.personalInfo?.firstName && ` • ${workingScenario.personalInfo.firstName} ${workingScenario.personalInfo?.lastName || ''}`}
+                </p>
+              </div>
+            </div>
+            <div className="text-xs text-blue-600">
+              Last saved: {new Date(workingScenario.lastModified).toLocaleString()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Progress Bar */}
       <div className="mb-8">
@@ -452,7 +508,7 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
         <div className="lg:col-span-3">
           <div className="bg-white rounded-lg shadow p-6">
             {renderActiveTab()}
-            
+
             <div className="flex justify-between mt-8 pt-6 border-t">
               <button
                 onClick={() => {
@@ -466,7 +522,7 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
               >
                 Previous
               </button>
-              
+
               <div className="space-x-3">
                 <button
                   onClick={handleSave}
@@ -475,7 +531,7 @@ export default function ScenarioBuilder({ onNavigate }: ScenarioBuilderProps) {
                   <Save className="h-4 w-4 mr-2" />
                   Save Draft
                 </button>
-                
+
                 <button
                   onClick={() => {
                     const currentIndex = tabs.findIndex(tab => tab.id === activeTab);

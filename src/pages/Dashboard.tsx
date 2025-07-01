@@ -1,4 +1,6 @@
 import { Plus, FileText, TrendingUp, Clock } from 'lucide-react';
+import { useQuickStats, useRecentScenarios } from '../lib/useScenarioManager';
+import { ScenarioFileManager } from '../components/ScenarioFileManager';
 
 type Page = 'dashboard' | 'scenario' | 'results' | 'comparison';
 
@@ -7,16 +9,42 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
-  const recentScenarios = [
-    { id: '1', name: 'Retirement at 62', lastModified: '2 days ago', status: 'Complete' },
-    { id: '2', name: 'Early Retirement at MRA', lastModified: '1 week ago', status: 'Draft' },
-    { id: '3', name: 'Delayed Retirement at 67', lastModified: '2 weeks ago', status: 'Complete' },
-  ];
+  const { stats, loading: statsLoading } = useQuickStats();
+  const { scenarios: recentScenarios, loading: scenariosLoading } = useRecentScenarios(3);
+
+  // Format date for display
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return date.toLocaleDateString();
+  };
 
   const quickStats = [
-    { label: 'Total Scenarios', value: '12', icon: FileText, color: 'bg-blue-500' },
-    { label: 'Avg. Annual Income', value: '$82,450', icon: TrendingUp, color: 'bg-green-500' },
-    { label: 'Years to Retirement', value: '8.5', icon: Clock, color: 'bg-purple-500' },
+    {
+      label: 'Total Scenarios',
+      value: statsLoading ? '...' : stats.totalScenarios.toString(),
+      icon: FileText,
+      color: 'bg-blue-500'
+    },
+    {
+      label: 'Avg. Annual Income',
+      value: statsLoading ? '...' : `$${stats.avgAnnualIncome.toLocaleString()}`,
+      icon: TrendingUp,
+      color: 'bg-green-500'
+    },
+    {
+      label: 'Years to Retirement',
+      value: statsLoading ? '...' : stats.yearsToRetirement.toString(),
+      icon: Clock,
+      color: 'bg-purple-500'
+    },
   ];
 
   return (
@@ -48,7 +76,26 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         })}
       </div>
 
-      {/* Quick Actions */}
+      {/* Scenario File Management - Prominent Section */}
+      <div className="mb-8 bg-white rounded-lg shadow">
+        <div className="p-6 border-b">
+          <h2 className="text-xl font-semibold text-gray-900">Scenario Management</h2>
+          <p className="text-gray-600 text-sm mt-1">
+            Create, open, save, and manage your retirement scenarios with traditional file operations
+          </p>
+        </div>
+        <div className="p-6">
+          <ScenarioFileManager
+            onScenarioChange={(_scenario) => {
+              // Navigate to scenario builder with loaded data
+              onNavigate('scenario');
+            }}
+            className="flex flex-wrap gap-3"
+          />
+        </div>
+      </div>
+
+      {/* Quick Actions and Scenario Management */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white rounded-lg shadow">
           <div className="p-6 border-b">
@@ -67,7 +114,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 </div>
               </div>
             </button>
-            
+
             <button
               onClick={() => onNavigate('comparison')}
               className="w-full flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
@@ -89,36 +136,54 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             <h2 className="text-xl font-semibold text-gray-900">Recent Scenarios</h2>
           </div>
           <div className="p-6">
-            <div className="space-y-4">
-              {recentScenarios.map((scenario) => (
-                <div
-                  key={scenario.id}
-                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() => onNavigate('results')}
+            {scenariosLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-600 mt-2 text-sm">Loading scenarios...</p>
+              </div>
+            ) : recentScenarios.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="h-8 w-8 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-600 mb-4">No scenarios yet</p>
+                <button
+                  onClick={() => onNavigate('scenario')}
+                  className="text-blue-600 hover:text-blue-700 font-medium text-sm"
                 >
-                  <div>
-                    <p className="font-medium text-gray-900">{scenario.name}</p>
-                    <p className="text-sm text-gray-600">Modified {scenario.lastModified}</p>
-                  </div>
-                  <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      scenario.status === 'Complete'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}
+                  Create your first scenario →
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {recentScenarios.map((scenario) => (
+                  <div
+                    key={scenario.id}
+                    className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => onNavigate('results')}
                   >
-                    {scenario.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-            
-            <button
-              onClick={() => onNavigate('scenario')}
-              className="mt-4 w-full text-center py-2 text-sm text-primary-600 hover:text-primary-700 font-medium"
-            >
-              View all scenarios →
-            </button>
+                    <div>
+                      <p className="font-medium text-gray-900">{scenario.name}</p>
+                      <p className="text-sm text-gray-600">Modified {formatDate(scenario.lastModified)}</p>
+                    </div>
+                    <span
+                      className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        scenario.isComplete
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {scenario.isComplete ? 'Complete' : 'Draft'}
+                    </span>
+                  </div>
+                ))}
+
+                <button
+                  onClick={() => onNavigate('scenario')}
+                  className="mt-4 w-full text-center py-2 text-sm text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  View all scenarios →
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

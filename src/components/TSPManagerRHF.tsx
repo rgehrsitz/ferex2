@@ -16,7 +16,7 @@ export function TSPManagerRHF({ tsp, onTSPChange }: TSPManagerRHFProps) {
     control,
     watch,
     setValue,
-    formState: { errors, isValid },
+    formState: { errors },
     reset
   } = useForm<TSPFormData>({
     resolver: zodResolver(tspSchema),
@@ -371,7 +371,7 @@ export function TSPManagerRHF({ tsp, onTSPChange }: TSPManagerRHFProps) {
               <AlertTriangle className="h-5 w-5 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-amber-800 text-sm">
-                  <strong>Allocation Total:</strong> {allocationTotal.toFixed(1)}% 
+                  <strong>Allocation Total:</strong> {allocationTotal.toFixed(1)}%
                   (should equal 100%)
                 </p>
               </div>
@@ -489,11 +489,11 @@ export function TSPManagerRHF({ tsp, onTSPChange }: TSPManagerRHFProps) {
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                   <h5 className="font-medium text-amber-900 mb-2">Mixed Strategy</h5>
                   <p className="text-amber-700 text-sm">
-                    Combine life expectancy payments with a fixed amount. You can receive life expectancy payments 
+                    Combine life expectancy payments with a fixed amount. You can receive life expectancy payments
                     for steady income, plus take additional fixed withdrawals when needed.
                   </p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <ControlledInput
                     name="withdrawalStrategy.mixedLifeExpectancyAmount"

@@ -1,0 +1,67 @@
+{
+  "id": "scenario-1751321463980-fv0hyvyqg",
+  "name": "Untitled Scenario",
+  "description": "",
+  "createdAt": "2025-06-30T22:11:03.980Z",
+  "lastModified": "2025-06-30T22:12:31.488Z",
+  "isComplete": false,
+  "personalInfo": {
+    "firstName": "Robert",
+    "lastName": "Gehrsitz",
+    "birthDate": "1965-02-25T00:00:00.000Z",
+    "hireDate": "1987-06-22T00:00:00.000Z",
+    "plannedRetirementDate": "2027-02-28T00:00:00.000Z",
+    "currentAge": 0,
+    "yearsOfService": 0
+  },
+  "retirementSystem": {
+    "type": "FERS"
+  },
+  "federalService": {
+    "highThreeSalary": 0,
+    "creditableService": {
+      "servicePeriods": [],
+      "totalCreditableYears": 0,
+      "totalCreditableMonths": 0
+    },
+    "survivorBenefit": {
+      "election": "NONE"
+    },
+    "unusedSickLeave": 0
+  },
+  "socialSecurity": {
+    "estimatedBenefit": 0,
+    "fullRetirementAge": 67,
+    "claimingAge": 67
+  },
+  "tsp": {
+    "currentBalance": 0,
+    "traditionalBalance": 0,
+    "rothBalance": 0,
+    "monthlyContribution": 0,
+    "agencyMatch": 0,
+    "growthRate": 7,
+    "withdrawalStrategy": {
+      "type": "LIFE_EXPECTANCY",
+      "frequency": "MONTHLY",
+      "startAge": 62
+    },
+    "fundsAllocation": {
+      "gFund": 10,
+      "fFund": 10,
+      "cFund": 40,
+      "sFund": 20,
+      "iFund": 20
+    }
+  },
+  "otherIncome": [],
+  "expenses": {
+    "monthlyAmount": 0,
+    "inflationRate": 0.025
+  },
+  "taxes": {
+    "filingStatus": "SINGLE",
+    "stateOfResidence": "",
+    "pensionTaxBasis": 0
+  }
+}
